@@ -1,3 +1,16 @@
+////////////////////////////////////////////////////////////////////////
+// File Name	: srv.c
+// Date		: 2024/04/27
+// OS		: Ubuntu 20.04.6 LTS 64bits
+// Author	: Park Na Rim
+// Student ID	: 2022202065
+// ----------------------------------------------------------------- //
+// Title: System Programming Assignment #2-1 (ftp server)
+// Description : Server program that converts the FTP command received
+//               from the client back into a user command. it then
+//               executes the command and send the results to client.
+///////////////////////////////////////////////////////////////////////
+
 #include <sys/types.h>
 #include <dirent.h>
 #include <sys/stat.h> //stat()
@@ -29,10 +42,17 @@ void errWrite(char *errStr)
 	exit(1);
 }
 
-
+////////////////////////////////////////////////////////////////////
+// client_info
+// ============================================================== //
+// Input : struct sockaddr_in *client_addr	-socket information
+// Output : 0	-Normal completion
+// Purpose : Print client's IP and port information.
+// /////////////////////////////////////////////////////////////////
 int client_info(struct sockaddr_in *client_addr) 
 {
-	char ipAddr[20];
+	char ipAddr[20]; //ip address
+	//convert to dot ip format
 	inet_ntop(AF_INET, &(client_addr->sin_addr), ipAddr, 20);
 	printf("==========Client info==========\n");
 	printf("client IP: %s\n\n", ipAddr);
@@ -74,7 +94,7 @@ void selSort(char *dList[], int cnt)
 // 	   char *arg	 	    - ls argument (path)
 // 	   char *result_buff	    - save result
 // Output : x
-// Purpose : Function that implements the ls command(option a, l)
+// Purpose : Function that implements the ls command(option a, l, al)
 //////////////////////////////////////////////////////////////////
 void lsCmd(int aflag, int lflag, int alflag, char *arg, char *result_buff)
 {
@@ -201,13 +221,13 @@ void lsCmd(int aflag, int lflag, int alflag, char *arg, char *result_buff)
 				}
 				else { strcat(printBuf, "\n"); }
 				
-				strcat(result_buff, printBuf);
+				strcat(result_buff, printBuf); //save ls result
 			}
 		}
 	}
 	
 	int reslen = strlen(result_buff);
-	result_buff[reslen] = '\0';
+	result_buff[reslen] = '\0'; //set string end
 
 	//===================close directory===================//
 	if(closedir(dp) < 0) {
@@ -216,8 +236,14 @@ void lsCmd(int aflag, int lflag, int alflag, char *arg, char *result_buff)
 	free(dList); //free dynamic allocation
 }
 
-
-
+///////////////////////////////////////////////////////////////////
+// cmd_process
+// ============================================================= //
+// Input : char *buff	 	- ftp command line buffer
+// 	 : char *result_buff	- save result buffer
+// Output : 0			- normal completion
+// Purpose : Analyze and execute FTP command
+///////////////////////////////////////////////////////////////////
 int cmd_process(char* buff, char* result_buff)
 {
 	char arg[100];				//ls argument(path)
@@ -260,31 +286,33 @@ int main(int argc, char **argv)
 	//===========open socket and listen===============//
 	struct sockaddr_in server_addr, client_addr;
 	int sockfd, connfd;
-	int len, len_out;
+	int len; //client addr length
 	int port = atoi(argv[1]);
 
-	if((sockfd = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
+	if((sockfd = socket(PF_INET, SOCK_STREAM, 0)) < 0) { //creat socket
 		write(STDERR_FILENO, "Server: Can't open stream socket.\n", 50);
 		exit(1);
 	}
 
 	//set server addr
-	//bzero((char*)&server_addr, sizeof(server_addr));
 	memset(&server_addr, 0, sizeof(server_addr));
-	server_addr.sin_family = AF_INET;
-	server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	server_addr.sin_port = htons(port);	
+	server_addr.sin_family = AF_INET;		//set family
+	server_addr.sin_addr.s_addr = htonl(INADDR_ANY);//set ip address
+	server_addr.sin_port = htons(port);		//set port
 	
-	//bind
+	//bind: connect address to socket
 	if(bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
 		write(STDERR_FILENO, "Server: Can't bind local address.\n", 50);
 		exit(1);
 	}
 	
+	//listen to client requests
 	listen(sockfd, 5);
+
+	//============connect to client, read and execute commands==============//
 	while(1) {
 		len = sizeof(client_addr);
-		connfd = accept(sockfd, (struct sockaddr *)&client_addr, &len);
+		connfd = accept(sockfd, (struct sockaddr *)&client_addr, &len);//accept request
 		if(connfd < 0) {
 			write(STDERR_FILENO, "Server: accept failed.\n", 50);
 			exit(1);
@@ -293,9 +321,9 @@ int main(int argc, char **argv)
 			write(STDERR_FILENO, "Error: client_info() error!!\n", 50);
 		}
 
-		while(1) {
+		while(1) { //read FTP command, execute, send the result to client
 			n = read(connfd, buff, MAX_BUFF); //read FTP command
-			buff[n] = '\0';
+			buff[n] = '\0'; //set string end
 
 			if(cmd_process(buff, result_buff) < 0) { //cmd execute
 				write(STDERR_FILENO, "Error: cmd_process() error!!\n", 50);
@@ -303,7 +331,7 @@ int main(int argc, char **argv)
 			}
 			write(connfd, result_buff, strlen(result_buff)); //send to client
 
-			if(!strcmp(result_buff, "QUIT")) {
+			if(!strcmp(result_buff, "QUIT")) { //program quit
 				write(STDOUT_FILENO, "QUIT\n", 5);
 				close(connfd);
 				close(sockfd);
@@ -311,6 +339,7 @@ int main(int argc, char **argv)
 			}
 		}
 	}
+	close(connfd);
 	close(sockfd);
 	return 0;
 }
