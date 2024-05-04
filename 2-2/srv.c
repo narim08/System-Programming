@@ -97,7 +97,7 @@ int main(int argc, char **argv)
 				if(!strcmp(buff, "QUIT")) { //program quit
 					close(client_fd);
 					close(server_fd);
-					sh_alrm(3);
+					sh_alrm(1); //1 second
 				}
 				write(client_fd, buff, strlen(buff)); //send to client
 			}
