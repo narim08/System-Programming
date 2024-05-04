@@ -46,9 +46,10 @@ int main(int argc, char **argv)
 		write(STDOUT_FILENO, "> ", 2);
 		read(STDIN_FILENO, buff, BUF_SIZE); //read user input
 
-		if(write(sockfd, buff, strlen(buff)) > 0) { //send string to server
-			if(read(sockfd, buff, sizeof(buff)) > 0) { //receive and print string again
+		if(write(sockfd, buff, BUF_SIZE) > 0) { //send string to server
+			if(read(sockfd, buff, BUF_SIZE) > 0) { //receive and print string again
 				printf("from server:%s", buff);
+				memset(buff, 0, sizeof(buff)); //buffer clear
 			}
 			else	//quit if string is not received
 				break;
