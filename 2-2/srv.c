@@ -1,3 +1,17 @@
+////////////////////////////////////////////////////////////////////////
+// File Name	: srv.c
+// Date		: 2024/05/04
+// OS		: Ubuntu 20.04.6 LTS 64bits
+// Author	: Park Na Rim
+// Student ID	: 2022202065
+// ----------------------------------------------------------------- //
+// Title: System Programming Assignment #2-2 (ftp server)
+// Description : This server program connects to the client and creates
+// 		a new process. The parent process outputs client
+// 		information, and the child process transmits the
+// 		received string. 
+///////////////////////////////////////////////////////////////////////
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,8 +32,8 @@ void sh_alrm(int); //signal handler for SIGALRM
 ////////////////////////////////////////////////////////////////////
 // client_info
 // ============================================================== //
-// Input : struct sockaddr_in *client_addr	-socket information
-// Output : 0	-Normal completion
+// Input : struct sockaddr_in *client_addr - socket information
+// Output : 0 - Normal completion
 // Purpose : Print client's IP and port information.
 // /////////////////////////////////////////////////////////////////
 int client_info(struct sockaddr_in *client_addr) 
@@ -34,6 +48,7 @@ int client_info(struct sockaddr_in *client_addr)
 	return 0;
 }
 
+
 int main(int argc, char **argv) 
 {
 	char buff[BUF_SIZE];
@@ -46,12 +61,12 @@ int main(int argc, char **argv)
 	signal(SIGCHLD, sh_chld);	//applying signal handler(sh_alrm) for SIGALRM
 	signal(SIGALRM, sh_alrm);	//applying signal handler(sh_chld) for SIGCHLD
 	
-	server_fd = socket(PF_INET, SOCK_STREAM, 0);
+	server_fd = socket(PF_INET, SOCK_STREAM, 0);	//creat socket
 	
 	//set server addr
 	memset(&server_addr, 0, sizeof(server_addr));
-	server_addr.sin_family = AF_INET;			//set family
-	server_addr.sin_addr.s_addr = htonl(INADDR_ANY);	//set ip address
+	server_addr.sin_family = AF_INET;		//set family
+	server_addr.sin_addr.s_addr = htonl(INADDR_ANY);//set ip address
 	server_addr.sin_port = htons(atoi(argv[1]));	//set port
 
 	//bind: connect address to socket
@@ -62,7 +77,7 @@ int main(int argc, char **argv)
 
 	//============connect to client, read and execute==============//
 	while(1) {
-		pid_t pid;
+		pid_t pid; //process ID
 		len = sizeof(client_addr);
 		client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &len);
 		
@@ -100,11 +115,27 @@ int main(int argc, char **argv)
 	return 0;
 }
 
+
+////////////////////////////////////////////////////////////////////
+// sh_chld
+// ============================================================== //
+// Input : int signum - signal number
+// Output : x
+// Purpose : Handles terminated child processes.
+// /////////////////////////////////////////////////////////////////
 void sh_chld(int signum) {
 	printf("Status of Child process was changed.\n");
-	wait(NULL);
+	wait(NULL); //Parent process waits for child process to terminate
 }
 
+
+////////////////////////////////////////////////////////////////////
+// sh_alrm
+// ============================================================== //
+// Input : int signum - signal number
+// Output : x
+// Purpose : Notifies process timeout
+// /////////////////////////////////////////////////////////////////
 void sh_alrm(int signum) {
 	printf("Child process(PID: %d) will be terminated.\n", getpid());
 	exit(1);
