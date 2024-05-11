@@ -244,7 +244,8 @@ void lsCmd(int aflag, int lflag, int alflag, char *arg, char *result_buff)
 ////////////////////////////////////////////////////////////////////////////
 // parseCmd
 // ====================================================================== //
-// Input : char *buf	- FTP command line
+// Input : char *buf		- FTP command line
+// 	   char *result_buff	- save result buffer
 // Output : x
 // Purpose : Convert FTP command back to user command, separate command and
 // 	     argument, execute command
@@ -308,10 +309,7 @@ void parseCmd(char *buf, char *result_buff)
 			else {errWrite("Error: argument is not required\n");}
 		}
 		if(getcwd(cwdBuf, sizeof(cwdBuf)) != NULL) { //get current path
-			strcpy(printBuf, "\"");
-			strcat(printBuf, cwdBuf);
-			strcat(printBuf, "\" is current directory\n");
-			strcpy(result_buff, printBuf);
+			sprintf(result_buff, "\"%s\" is current directory\n", cwdBuf);
 		}
 	}
 	//==================CWD(cd)=================//
@@ -325,10 +323,7 @@ void parseCmd(char *buf, char *result_buff)
 
 				if(chdir(cdBuf)!=-1) { //change path
 					if(getcwd(path, sizeof(path))!=NULL) { //get current path
-						strcpy(printBuf, "\"");
-						strcat(printBuf, path);
-						strcat(printBuf, "\" is current directory\n");
-						strcpy(result_buff, printBuf);
+						sprintf(result_buff, "\"%s\" is current directory\n", path);
 					}
 				}
 				else {errWrite("Error: directory not found\n");}
@@ -468,14 +463,15 @@ int main(int argc, char **argv)
 				printf("> %s\t[%d]\n", buff, getpid()); //print client's commands
 				memset(result_buff, 0, sizeof(result_buff));
 				parseCmd(buff, result_buff); //Execute after separating commands
-				
+
+				write(client_fd, result_buff, strlen(result_buff)); //send to client
 
 				if(!strcmp(buff, "QUIT")) { //program quit
 					close(client_fd);
 					close(server_fd);
 					sh_alrm(1); //1 second
 				}
-				write(client_fd, result_buff, strlen(result_buff)); //send to client
+				memset(buff, 0, sizeof(buff)); //buffer clear!!
 			}
 			close(client_fd);
 			exit(0);
