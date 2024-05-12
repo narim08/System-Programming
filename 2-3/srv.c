@@ -30,7 +30,7 @@
 #include <grp.h> //getgrgid()
 #include <time.h> //strftime()
 
-
+#define INTERVAL 10
 #define BUF_SIZE 256
 
 void sh_chld(int); //signal handler for SIGCHLD
@@ -66,6 +66,22 @@ int client_info(struct sockaddr_in *client_addr)
 	printf("client port: %d\n", ntohs(client_addr->sin_port));
 	printf("===============================\n");
 	return 0;
+}
+
+typedef struct {
+	pid_t pid;
+	int port;
+	time_t serviceTime;
+} clientInfo;
+
+
+void currentCliInfo(clientInfo cliInfo[], int clientNum) 
+{
+	printf("Current Number of Client: %d\n", clientNum);
+	printf(" PID\tPORT\tTIME\n");
+	for (int i=0; i<clientNum; i++) {
+		printf("%d\t%d\t%ld\n", cliInfo[i].pid, cliInfo[i].port, time(NULL) - cliInfo[i].serviceTime);
+	}
 }
 
 ///////////////////////////////////////////////////////////////////
@@ -418,6 +434,8 @@ void parseCmd(char *buf, char *result_buff)
 }
 
 
+clientInfo cliInfo[50]; //save current client's information
+
 int main(int argc, char **argv) 
 {
 	char buff[BUF_SIZE], result_buff[1024];
@@ -426,6 +444,9 @@ int main(int argc, char **argv)
 	int server_fd, client_fd;
 	int len;
 	int port;
+	int clientNum=0;
+	time_t timeStart = time(NULL);
+	//clientInfo cliInfo[50]; //save current client's information
 
 	signal(SIGCHLD, sh_chld);	//applying signal handler(sh_alrm) for SIGALRM
 	signal(SIGALRM, sh_alrm);	//applying signal handler(sh_chld) for SIGCHLD
@@ -449,7 +470,12 @@ int main(int argc, char **argv)
 		pid_t pid; //process ID
 		len = sizeof(client_addr);
 		client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &len);
-		
+		clientNum++;
+
+		if(clientNum == 1) {
+			timeStart = time(NULL);
+		}
+
 		//fork
 		if((pid=fork())<0) { 	//fork error
 			printf("Error: fork() error!!\n");
@@ -458,6 +484,13 @@ int main(int argc, char **argv)
 		else if(pid==0) {	//child process
 			close(server_fd);
 			printf("Child Process ID: %d\n", getpid());
+			
+			cliInfo[clientNum-1].pid = getpid();
+			cliInfo[clientNum-1].port = ntohs(server_addr.sin_port);
+			cliInfo[clientNum-1].serviceTime = time(NULL);
+			//currentCliInfo(cliInfo, clientNum); //print
+			memset(buff, 0, sizeof(buff));
+
 			while((n=read(client_fd, buff, BUF_SIZE))>0) { //read client's string
 				
 				printf("> %s\t[%d]\n", buff, getpid()); //print client's commands
@@ -480,7 +513,14 @@ int main(int argc, char **argv)
 			if(client_info(&client_addr) < 0) { //display client ip and port
 				printf("Error: client_info error!!\n");
 			}
+
+			
+			cliInfo[clientNum-1].pid = getpid();
+			cliInfo[clientNum-1].port = ntohs(server_addr.sin_port);
+			cliInfo[clientNum-1].serviceTime = time(NULL);
+			currentCliInfo(cliInfo, clientNum); //print
 		}
+
 		close(client_fd);
 	}//end while
 	close(server_fd);
