@@ -35,6 +35,8 @@
 
 void sh_chld(int); //signal handler for SIGCHLD
 void sh_alrm(int); //signal handler for SIGALRM
+void sh_int(int); //signal handler for SIGINT
+void sh_alrm_info(int);
 
 ////////////////////////////////////////////////////////////////////
 // errWrite
@@ -73,6 +75,7 @@ typedef struct {
 	int port;
 	time_t serviceTime;
 } clientInfo;
+
 
 
 void currentCliInfo(clientInfo cliInfo[], int clientNum) 
@@ -433,8 +436,9 @@ void parseCmd(char *buf, char *result_buff)
 	//==========save command result===========//
 }
 
-
+int clientNum=0;
 clientInfo cliInfo[50]; //save current client's information
+int chPid[50];
 
 int main(int argc, char **argv) 
 {
@@ -444,13 +448,13 @@ int main(int argc, char **argv)
 	int server_fd, client_fd;
 	int len;
 	int port;
-	int clientNum=0;
 	time_t timeStart = time(NULL);
-	//clientInfo cliInfo[50]; //save current client's information
 
 	signal(SIGCHLD, sh_chld);	//applying signal handler(sh_alrm) for SIGALRM
 	signal(SIGALRM, sh_alrm);	//applying signal handler(sh_chld) for SIGCHLD
-	
+	signal(SIGINT, sh_int);
+	signal(SIGALRM, sh_alrm_info);
+
 	server_fd = socket(PF_INET, SOCK_STREAM, 0);	//creat socket
 	
 	//set server addr
@@ -470,11 +474,6 @@ int main(int argc, char **argv)
 		pid_t pid; //process ID
 		len = sizeof(client_addr);
 		client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &len);
-		clientNum++;
-
-		if(clientNum == 1) {
-			timeStart = time(NULL);
-		}
 
 		//fork
 		if((pid=fork())<0) { 	//fork error
@@ -485,10 +484,6 @@ int main(int argc, char **argv)
 			close(server_fd);
 			printf("Child Process ID: %d\n", getpid());
 			
-			cliInfo[clientNum-1].pid = getpid();
-			cliInfo[clientNum-1].port = ntohs(server_addr.sin_port);
-			cliInfo[clientNum-1].serviceTime = time(NULL);
-			//currentCliInfo(cliInfo, clientNum); //print
 			memset(buff, 0, sizeof(buff));
 
 			while((n=read(client_fd, buff, BUF_SIZE))>0) { //read client's string
@@ -500,6 +495,15 @@ int main(int argc, char **argv)
 				write(client_fd, result_buff, strlen(result_buff)); //send to client
 
 				if(!strcmp(buff, "QUIT")) { //program quit
+					for(int i=0; i<clientNum; ++i) {
+						if(cliInfo[i].pid==getpid()) {
+							for(int j=i; j<clientNum-1; ++j) {
+								cliInfo[j] = cliInfo[j+1];
+							}
+							clientNum--;
+							break;
+						}
+					}
 					close(client_fd);
 					close(server_fd);
 					sh_alrm(1); //1 second
@@ -514,11 +518,13 @@ int main(int argc, char **argv)
 				printf("Error: client_info error!!\n");
 			}
 
-			
-			cliInfo[clientNum-1].pid = getpid();
-			cliInfo[clientNum-1].port = ntohs(server_addr.sin_port);
-			cliInfo[clientNum-1].serviceTime = time(NULL);
-			currentCliInfo(cliInfo, clientNum); //print
+			chPid[clientNum] = pid;
+			cliInfo[clientNum].pid = pid;
+			cliInfo[clientNum].port = ntohs(server_addr.sin_port);
+			cliInfo[clientNum].serviceTime = time(NULL);
+			clientNum++;
+			currentCliInfo(cliInfo, clientNum); //prinit
+			alarm(10);
 		}
 
 		close(client_fd);
@@ -549,6 +555,21 @@ void sh_chld(int signum) {
 // Purpose : Notifies process timeout
 // /////////////////////////////////////////////////////////////////
 void sh_alrm(int signum) {
-	printf("Child process(PID: %d) will be terminated.\n", getpid());
+	printf("Client ( %d)'s Release\n", getpid());
 	exit(1);
 }
+
+void sh_alrm_info(int signum) {
+	currentCliInfo(cliInfo, clientNum);
+	alarm(10);
+}
+
+void sh_int(int signum) {
+	printf("server whil be terminated.\n");
+	for(int i=0; i<clientNum; ++i){
+		kill(chPid[i], SIGTERM);
+		waitpid(chPid[i], NULL, 0);
+	}
+	exit(0);
+}
+
