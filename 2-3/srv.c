@@ -495,7 +495,7 @@ int main(int argc, char **argv)
 				write(client_fd, result_buff, strlen(result_buff)); //send to client
 
 				if(!strcmp(buff, "QUIT")) { //program quit
-					for(int i=0; i<clientNum; ++i) {
+					/*for(int i=0; i<clientNum; ++i) {
 						if(cliInfo[i].pid==getpid()) {
 							for(int j=i; j<clientNum-1; ++j) {
 								cliInfo[j] = cliInfo[j+1];
@@ -503,7 +503,7 @@ int main(int argc, char **argv)
 							clientNum--;
 							break;
 						}
-					}
+					}*/
 					close(client_fd);
 					close(server_fd);
 					sh_alrm(1); //1 second
@@ -543,7 +543,20 @@ int main(int argc, char **argv)
 // /////////////////////////////////////////////////////////////////
 void sh_chld(int signum) {
 	printf("Status of Child process was changed.\n");
-	wait(NULL); //Parent process waits for child process to terminate
+	pid_t pid;
+	int status;
+	while((pid=waitpid(-1, &status, WNOHANG)) >0) {
+		for(int i=0; i<clientNum; ++i) {
+			if(cliInfo[i].pid == pid) {
+				for(int j=i; j<clientNum-1; ++j) {
+					cliInfo[j] = cliInfo[j+1];
+				}
+				clientNum--;
+				break;
+			}
+		}
+	}
+	//wait(NULL); //Parent process waits for child process to terminate
 }
 
 
