@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 // File Name	: cli.c
-// Data		: 2024/05/11
+// Data		: 2024/05/12
 // OS		: Ubuntu 20.04.6 LTS 64bits
 // Author	: Park Na Rim
 // Student ID	: 2022202065
@@ -36,12 +36,11 @@ void errArg()
 	exit(1);
 }
 
-
 ////////////////////////////////////////////////////////////////////////////
 //converFTP
 //========================================================================//
-//Input: int argc	- number of arguments
-//       char *argv[]	- save arguments
+//Input: char *buff	- user command line
+//       char *cmd_buff - save converted FTP command
 //Output: x
 //Purpose: Converts user commands to FTP commands
 //////////////////////////////////////////////////////////////////////////// 
@@ -140,13 +139,13 @@ void convertFTP(char* buff, char* cmd_buff)
 	cmd_buff[n]='\0'; //set string end
 }
 
+
 int main(int argc, char **argv)
 {
 	char buff[BUF_SIZE], cmd_buff[BUF_SIZE], rcv_buff[1024];
 	int n;
 	int sockfd;
 	struct sockaddr_in serv_addr;
-
 
 	sockfd = socket(AF_INET, SOCK_STREAM, 0); //creat socket
 
