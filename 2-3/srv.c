@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////
 // File Name	: srv.c
-// Date		: 2024/05/11
+// Date		: 2024/05/12
 // OS		: Ubuntu 20.04.6 LTS 64bits
 // Author	: Park Na Rim
 // Student ID	: 2022202065
@@ -8,8 +8,9 @@
 // Title: System Programming Assignment #2-3 (ftp server)
 // Description : This server program connects to the client and creates
 // 		a new process. The parent process outputs client
-// 		information, and the child process transmits the
-// 		received string. 
+// 		information, And the child process executes the ftp
+// 		command. This server program outputs information about
+// 		the currently running process every 10 seconds. 
 ///////////////////////////////////////////////////////////////////////
 
 #include <stdio.h>
@@ -36,7 +37,7 @@
 void sh_chld(int); //signal handler for SIGCHLD
 void sh_alrm(int); //signal handler for SIGALRM
 void sh_int(int); //signal handler for SIGINT
-void sh_alrm_info(int);
+void sh_alrm_info(int); //signal handler for SIGALRM
 
 ////////////////////////////////////////////////////////////////////
 // errWrite
@@ -70,14 +71,21 @@ int client_info(struct sockaddr_in *client_addr)
 	return 0;
 }
 
-typedef struct {
+typedef struct { //client information structure
 	pid_t pid;
 	int port;
 	time_t serviceTime;
 } clientInfo;
 
 
-
+////////////////////////////////////////////////////////////////////
+// currentCliInfo
+// ============================================================== //
+// Input : clientInfo cliInfo[]	- Array of client information structures
+// 	   clientNum		- number of client process
+// Output : x
+// Purpose : Print information about currently running client
+// /////////////////////////////////////////////////////////////////
 void currentCliInfo(clientInfo cliInfo[], int clientNum) 
 {
 	printf("Current Number of Client: %d\n", clientNum);
@@ -432,13 +440,12 @@ void parseCmd(char *buf, char *result_buff)
 		}
 		strcpy(result_buff, "QUIT");
 	}
-	
-	//==========save command result===========//
 }
 
-int clientNum=0;
+
+int clientNum=0; //Number of clients (child processes)
 clientInfo cliInfo[50]; //save current client's information
-int chPid[50];
+int chPid[50]; //PID of child process(For termination)
 
 int main(int argc, char **argv) 
 {
@@ -448,12 +455,12 @@ int main(int argc, char **argv)
 	int server_fd, client_fd;
 	int len;
 	int port;
-	time_t timeStart = time(NULL);
+	time_t timeStart = time(NULL); //Set current time
 
 	signal(SIGCHLD, sh_chld);	//applying signal handler(sh_alrm) for SIGALRM
 	signal(SIGALRM, sh_alrm);	//applying signal handler(sh_chld) for SIGCHLD
-	signal(SIGINT, sh_int);
-	signal(SIGALRM, sh_alrm_info);
+	signal(SIGINT, sh_int); 	//applying signal handler(sh_int) for SIGCHLD
+	signal(SIGALRM, sh_alrm_info);	//applying signal handler(sh_alrm_info) for SIGCHLD
 
 	server_fd = socket(PF_INET, SOCK_STREAM, 0);	//creat socket
 	
@@ -484,7 +491,7 @@ int main(int argc, char **argv)
 			close(server_fd);
 			printf("Child Process ID: %d\n", getpid());
 			
-			memset(buff, 0, sizeof(buff));
+			memset(buff, 0, sizeof(buff)); //buffer clear
 
 			while((n=read(client_fd, buff, BUF_SIZE))>0) { //read client's string
 				
@@ -495,20 +502,11 @@ int main(int argc, char **argv)
 				write(client_fd, result_buff, strlen(result_buff)); //send to client
 
 				if(!strcmp(buff, "QUIT")) { //program quit
-					/*for(int i=0; i<clientNum; ++i) {
-						if(cliInfo[i].pid==getpid()) {
-							for(int j=i; j<clientNum-1; ++j) {
-								cliInfo[j] = cliInfo[j+1];
-							}
-							clientNum--;
-							break;
-						}
-					}*/
 					close(client_fd);
 					close(server_fd);
 					sh_alrm(1); //1 second
 				}
-				memset(buff, 0, sizeof(buff)); //buffer clear!!
+				memset(buff, 0, sizeof(buff)); //buffer clear
 			}
 			close(client_fd);
 			exit(0);
@@ -517,14 +515,15 @@ int main(int argc, char **argv)
 			if(client_info(&client_addr) < 0) { //display client ip and port
 				printf("Error: client_info error!!\n");
 			}
-
+			
+			//Save and print current child process information
 			chPid[clientNum] = pid;
 			cliInfo[clientNum].pid = pid;
 			cliInfo[clientNum].port = ntohs(server_addr.sin_port);
 			cliInfo[clientNum].serviceTime = time(NULL);
 			clientNum++;
-			currentCliInfo(cliInfo, clientNum); //prinit
-			alarm(10);
+			currentCliInfo(cliInfo, clientNum); //Print current client information
+			alarm(10); //Print current child process information every 10 seconds
 		}
 
 		close(client_fd);
@@ -532,7 +531,6 @@ int main(int argc, char **argv)
 	close(server_fd);
 	return 0;
 }
-
 
 ////////////////////////////////////////////////////////////////////
 // sh_chld
@@ -545,7 +543,11 @@ void sh_chld(int signum) {
 	printf("Status of Child process was changed.\n");
 	pid_t pid;
 	int status;
+
+	//Wait for child process to terminate
 	while((pid=waitpid(-1, &status, WNOHANG)) >0) {
+
+		//Search for PID of terminated child process and delete it
 		for(int i=0; i<clientNum; ++i) {
 			if(cliInfo[i].pid == pid) {
 				for(int j=i; j<clientNum-1; ++j) {
@@ -556,27 +558,39 @@ void sh_chld(int signum) {
 			}
 		}
 	}
-	//wait(NULL); //Parent process waits for child process to terminate
 }
-
 
 ////////////////////////////////////////////////////////////////////
 // sh_alrm
 // ============================================================== //
 // Input : int signum - signal number
 // Output : x
-// Purpose : Notifies process timeout
+// Purpose : Notifies process terminated
 // /////////////////////////////////////////////////////////////////
 void sh_alrm(int signum) {
 	printf("Client ( %d)'s Release\n", getpid());
 	exit(1);
 }
 
+////////////////////////////////////////////////////////////////////
+// sh_alrm_info
+// ============================================================== //
+// Input : int signum - signal number
+// Output : x
+// Purpose : Print current child process information
+// /////////////////////////////////////////////////////////////////
 void sh_alrm_info(int signum) {
 	currentCliInfo(cliInfo, clientNum);
 	alarm(10);
 }
 
+////////////////////////////////////////////////////////////////////
+// sh_int
+// ============================================================== //
+// Input : int signum - signal number
+// Output : x
+// Purpose : Handles terminated server program
+// /////////////////////////////////////////////////////////////////
 void sh_int(int signum) {
 	printf("server whil be terminated.\n");
 	for(int i=0; i<clientNum; ++i){
