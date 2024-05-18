@@ -27,11 +27,13 @@
 
 int user_match(char *user, char *passwd)
 {
-	FILE *fp;
 	struct passwd *pw;
+	FILE *fp = fopen("passwd", "r"); //Open file read-only
+	if(fp == NULL) {
+		printf("Error: Failed to open passwd file\n");
+		return 0;
+	}
 
-	fp = fopen("passwd", "r"); //Open file read-only
-	
 	//============Check login information==========//
 	while((pw = fgetpwent(fp)) != NULL) { //Check the file by reading it line by line
 		if(strcmp(user, pw->pw_name)==0 && strcmp(passwd, pw->pw_passwd)==0) {
@@ -50,13 +52,17 @@ int log_auth(int connfd)
 	int n, count=1;
 	
 	while(1) {
+		printf("** User is trying to log-in (%d/3) **\n", count);
+
 		memset(user, 0, MAX_BUF);
-		if((n = read(connfd, user, MAX_BUF))<=0) {exit(1);}
+		if((n = read(connfd, user, sizeof(user)))<=0) {exit(1);}
 		user[n]='\0';
+		printf("user: %s!!\n", user);
 
 		memset(passwd, 0, MAX_BUF);
 		if((n = read(connfd, passwd, MAX_BUF))<=0) {exit(1);}
 		passwd[n]='\0';
+		printf("pw: %s!!\n", passwd);
 
 		write(connfd, "OK", MAX_BUF);
 
@@ -75,6 +81,57 @@ int log_auth(int connfd)
 		}
 	}
 	return 1;
+}
+
+int IP_match(char *allowIP, char *cliIP)
+{
+	if(!strcmp(allowIP, "*.*.*.*")) { //success
+		return 1;
+	}
+
+	char *allowPart[4], *cliPart[4];
+
+	//copy
+	char *allowCP = strdup(allowIP);
+	char *cliCP = strdup(cliIP);
+
+	allowPart[0] = strtok(allowCP, ".");
+	cliPart[0] = strtok(cliCP, ".");
+
+	for(int i=1; i<4; i++) {
+		allowPart[i] = strtok(NULL, ".");
+		cliPart[i] = strtok(NULL, ".");
+	}
+
+	for(int i=0; i<4; i++) {
+		if(allowPart[i] && cliPart[i]) {
+			if(strcmp(allowPart[i], "*")!=0 && strcmp(allowPart[i], cliPart[i])!=0) {
+				free(allowCP); free(cliCP); return 0;
+			}
+		}
+		else { free(allowCP); free(cliCP); return 0; }
+	}
+
+	free(allowCP);
+	free(cliCP);
+	return 1; //success
+}
+
+////////////////////////////////////////////////////////////////////
+// client_info
+// ============================================================== //
+// Input : struct sockaddr_in *client_addr - socket information
+// Output : 0 - Normal completion
+// Purpose : Print client's IP and port information.
+// /////////////////////////////////////////////////////////////////
+int client_info(struct sockaddr_in *client_addr)
+{
+	char ipAddr[20]; //ip address
+	//convert to dot ip format
+	inet_ntop(AF_INET, &(client_addr->sin_addr), ipAddr, 20);
+	printf("IP: %s\n", ipAddr);
+	printf("port: %d\n", ntohs(client_addr->sin_port));
+	return 0;
 }
 
 
@@ -103,12 +160,17 @@ int main(int argc, char *argv[])
 		int clilen = sizeof(cliaddr);
 		connfd = accept(listenfd, (struct sockaddr *)&cliaddr, &clilen);
 
+		printf("** Client is trying to connect **\n");
+		if(client_info(&cliaddr) < 0) { //display client ip and port
+			printf("Error: client_info error!!\n");
+		}
+
 		//==========check client's IP===========//
 		char cliIP[INET_ADDRSTRLEN];
 		inet_ntop(AF_INET, &cliaddr.sin_addr, cliIP, sizeof(cliIP));
 		fp_checkIP = fopen("access.txt", "r");
 		if(fp_checkIP == NULL) {
-			printf("Error: Failed to open 'access.txt' file");
+			printf("Error: Failed to open 'access.txt' file\n");
 			exit(1);
 		}
 
@@ -116,11 +178,14 @@ int main(int argc, char *argv[])
 		char allowIP[INET_ADDRSTRLEN];
 		while(fgets(allowIP, sizeof(allowIP), fp_checkIP) != NULL) {
 			allowIP[strcspn(allowIP, "\n")] = 0;
-			if(!strcmp(cliIP, allowIP)) {
-				write(connfd, "ACCEPTED", MAX_BUF);
+
+			if(IP_match(allowIP, cliIP)==1) {
 				allow++;
+				printf("** Client is connected **\n");
+				write(connfd, "ACCEPTED", MAX_BUF);
 				break;
 			}
+
 		}
 		fclose(fp_checkIP);
 		if(allow == 0) {

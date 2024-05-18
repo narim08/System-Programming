@@ -27,35 +27,36 @@
 void log_in(int sockfd)
 {
 	int n;
-	char user[MAX_BUF], *passwd, buf[MAX_BUF];
+	char user[MAX_BUF], buf[MAX_BUF];
 	//=============check if the ip is acceptable==============//
+	memset(buf, 0, sizeof(buf));
 	n = read(sockfd, buf, MAX_BUF);
 	buf[n] = '\0';
+
 	if(!strcmp(buf, "REJECTION")) { //doesn't exist in the access.txt
-		printf("**Connection refused**");
+		printf("** Connection refused **\n");
 		close(sockfd);
 		exit(1);
 	}
-	else { //buf is "ACCEPTED", receives username and password
-		printf("**It is connected to Server");
-
+	else { //buf is ACCEPTED, receives username and password
+		printf("** It is connected to Server **\n");
+		
 		while(1) { 
 			//user name
 			memset(user, 0, sizeof(user));
 			printf("Input ID: ");
-			n = read(STDIN_FILENO, user, sizeof(user)); //get user name
-			user[n] = '\0';
-			write(sockfd, user, MAX_BUF); //pass user name to server
+			scanf("%s", user);
 			
-			//password
-			passwd = getpass("Input Password: "); //get password
+			char *passwd = getpass("Input Password: "); //get password
+			
+			write(sockfd, user, MAX_BUF); //pass user name to server
 			write(sockfd, passwd, MAX_BUF); //pass password to server
 			
 			//read results checked by the server
 			memset(buf, 0, sizeof(buf));
 			n = read(sockfd, buf, MAX_BUF);
 			buf[n] = '\0';
-				
+			
 			if(!strcmp(buf, "OK")) { //Server finds username and password
 				memset(buf, 0, sizeof(buf)); //clear buffer
 
@@ -63,14 +64,14 @@ void log_in(int sockfd)
 				buf[n] = '\0';
 
 				if(!strcmp(buf, "OK")) { 	//login success
-					printf("**User '%s' logged in**", user);
+					printf("** User '%s' logged in **\n", user);
 					return;
 				}
 				else if(!strcmp(buf, "FAIL")) { //login fail
-					printf("**Log-in failed**");
+					printf("** Log-in failed **\n");
 				}
 				else {	//buf is "DISCONNECTION", three times fail
-					printf("**Connection closed**");
+					printf("** Connection closed **\n");
 					close(sockfd);
 					exit(1);
 				}
