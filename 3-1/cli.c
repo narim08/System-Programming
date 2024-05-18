@@ -64,7 +64,7 @@ void log_in(int sockfd)
 
 				if(!strcmp(buf, "OK")) { 	//login success
 					printf("**User '%s' logged in**", user);
-					return 0;
+					return;
 				}
 				else if(!strcmp(buf, "FAIL")) { //login fail
 					printf("**Log-in failed**");
@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
 	servaddr.sin_port = htons(PORTNO);		//set port
 	
 	//connect to server
-	connect(sockfd, (struct SA *)&servaddr, sizeof(servaddr));
+	connect(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
 
 	log_in(sockfd);
 

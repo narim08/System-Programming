@@ -27,17 +27,20 @@
 
 int user_match(char *user, char *passwd)
 {
-	FILE *fd;
+	FILE *fp;
 	struct passwd *pw;
 
 	fp = fopen("passwd", "r"); //Open file read-only
-	while((pw = fgetpwent(fp)) != NULL) {
-		
+	
+	//============Check login information==========//
+	while((pw = fgetpwent(fp)) != NULL) { //Check the file by reading it line by line
+		if(strcmp(user, pw->pw_name)==0 && strcmp(passwd, pw->pw_passwd)==0) {
+			fclose(fp);
+			return 1; //Authentication successful
+		}
 	}
-
 	fclose(fp);
-	return 1;
-
+	return 0; //Authentication failed
 }
 
 
@@ -47,9 +50,11 @@ int log_auth(int connfd)
 	int n, count=1;
 	
 	while(1) {
+		memset(user, 0, MAX_BUF);
 		if((n = read(connfd, user, MAX_BUF))<=0) {exit(1);}
 		user[n]='\0';
 
+		memset(passwd, 0, MAX_BUF);
 		if((n = read(connfd, passwd, MAX_BUF))<=0) {exit(1);}
 		passwd[n]='\0';
 
@@ -79,7 +84,6 @@ int main(int argc, char *argv[])
 	struct sockaddr_in servaddr, cliaddr;
 	FILE *fp_checkIP; 	//FILE stream to check client's IP
 
-
 	listenfd = socket(PF_INET, SOCK_STREAM, 0);	//creat socket
 
 	//set server addr
@@ -99,8 +103,34 @@ int main(int argc, char *argv[])
 		int clilen = sizeof(cliaddr);
 		connfd = accept(listenfd, (struct sockaddr *)&cliaddr, &clilen);
 
-		checkIP(connfd);
+		//==========check client's IP===========//
+		char cliIP[INET_ADDRSTRLEN];
+		inet_ntop(AF_INET, &cliaddr.sin_addr, cliIP, sizeof(cliIP));
+		fp_checkIP = fopen("access.txt", "r");
+		if(fp_checkIP == NULL) {
+			printf("Error: Failed to open 'access.txt' file");
+			exit(1);
+		}
 
+		int allow = 0;
+		char allowIP[INET_ADDRSTRLEN];
+		while(fgets(allowIP, sizeof(allowIP), fp_checkIP) != NULL) {
+			allowIP[strcspn(allowIP, "\n")] = 0;
+			if(!strcmp(cliIP, allowIP)) {
+				write(connfd, "ACCEPTED", MAX_BUF);
+				allow++;
+				break;
+			}
+		}
+		fclose(fp_checkIP);
+		if(allow == 0) {
+			write(connfd, "REJECTION", MAX_BUF);
+			printf("** It is NOT authenticated client: %s **\n", cliIP);
+			close(connfd);
+			continue;
+		}
+
+		//================Check login information==============//
 		if(log_auth(connfd)==0) { //if 3 times fail (ok: 1, fail: 0)
 			printf("** Fail to log-in **\n");
 			close(connfd);
@@ -110,5 +140,6 @@ int main(int argc, char *argv[])
 		close(connfd);
 	}
 	
+	close(listenfd);
 	return 0;
 }
