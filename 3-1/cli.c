@@ -6,9 +6,8 @@
 // Student ID	: 2022202065
 // -------------------------------------------------------------------------//
 // Title : System Programming Assignment #3-1 (ftp server)
-// Description : This is a client program that converts user commands into
-//               ftp commands and sends them to the server. Then it receives
-//               the result and prints it out.
+// Description : This client program connects to the server and attempts to
+// 		 log in.
 /////////////////////////////////////////////////////////////////////////////
 
 #include <stdio.h>
@@ -24,18 +23,25 @@
 #define CONT_PORT 20001
 
 
+////////////////////////////////////////////////////////////////////
+// log_in
+// ============================================================== //
+// Input : int sockfd	- socket file descriptor
+// Output : x
+// Purpose : Send login information to server and receive result
+// /////////////////////////////////////////////////////////////////
 void log_in(int sockfd)
 {
 	int n;
 	char user[MAX_BUF], buf[MAX_BUF];
 	//=============check if the ip is acceptable==============//
 	memset(buf, 0, sizeof(buf));
-	n = read(sockfd, buf, MAX_BUF);
+	n = read(sockfd, buf, MAX_BUF); //check IP result
 	buf[n] = '\0';
 
 	if(!strcmp(buf, "REJECTION")) { //doesn't exist in the access.txt
 		printf("** Connection refused **\n");
-		close(sockfd);
+		close(sockfd); 		//Connection terminated
 		exit(1);
 	}
 	else { //buf is ACCEPTED, receives username and password
@@ -45,7 +51,7 @@ void log_in(int sockfd)
 			//user name
 			memset(user, 0, sizeof(user));
 			printf("Input ID: ");
-			scanf("%s", user);
+			scanf("%s", user); //get user name
 			
 			char *passwd = getpass("Input Password: "); //get password
 			
@@ -54,7 +60,7 @@ void log_in(int sockfd)
 			
 			//read results checked by the server
 			memset(buf, 0, sizeof(buf));
-			n = read(sockfd, buf, MAX_BUF);
+			n = read(sockfd, buf, MAX_BUF); //check login result
 			buf[n] = '\0';
 			
 			if(!strcmp(buf, "OK")) { //Server finds username and password
@@ -81,6 +87,15 @@ void log_in(int sockfd)
 }
 
 
+////////////////////////////////////////////////////////////////////
+// main
+// ============================================================== //
+// Input : int argc	- number of arguments
+// 	   char *argv[]	- content of argument
+// Output : 0 - Normal completion
+// 	   -1 - Error
+// Purpose : connect to server with socket
+// /////////////////////////////////////////////////////////////////
 int main(int argc, char *argv[])
 {
 	int sockfd, n, p_pid;
