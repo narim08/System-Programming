@@ -57,12 +57,10 @@ int log_auth(int connfd)
 		memset(user, 0, MAX_BUF);
 		if((n = read(connfd, user, sizeof(user)))<=0) {exit(1);}
 		user[n]='\0';
-		printf("user: %s!!\n", user);
 
 		memset(passwd, 0, MAX_BUF);
 		if((n = read(connfd, passwd, MAX_BUF))<=0) {exit(1);}
 		passwd[n]='\0';
-		printf("pw: %s!!\n", passwd);
 
 		write(connfd, "OK", MAX_BUF);
 
