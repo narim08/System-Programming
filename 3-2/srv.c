@@ -264,6 +264,8 @@ int exe_client(int control_sockfd)
 {
 	char buff[MAX_BUF], result_buff[SEND_BUF];
 	int n;
+	memset(buff, 0, sizeof(buff));
+	memset(result_buff, 0, sizeof(result_buff));
 
 	if ((n = read(control_sockfd, buff, MAX_BUF)) > 0) {
         	buff[n] = '\0';
@@ -271,36 +273,40 @@ int exe_client(int control_sockfd)
 		
 		// Send ACK
        		write(control_sockfd, "200 Port command successful", MAX_BUF);
+		printf("200 port command successful\n");
 
         	// Extract IP and port from PORT command
         	unsigned int ip[4];
         	int p1, p2, dataPort;
         	sscanf(buff, "PORT %u,%u,%u,%u,%d,%d", &ip[0], &ip[1], &ip[2], &ip[3], &p1, &p2);
-        	char ip_str[16];
+        	char ip_str[INET_ADDRSTRLEN];
 		snprintf(ip_str, sizeof(ip_str), "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
         	dataPort = p1 * 256 + p2;
 
 		printf("Connecting to client at %s:%d\n", ip_str, dataPort);
 
+		
 		//================data connection=============//
+		sleep(3);
         	int data_sockfd;
         	struct sockaddr_in data_addr;
-        	if ((data_sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        	if ((data_sockfd = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
             		printf("Error: can't creat data socket\n");
             		return -1;
        		 }
 
 		//set
+		bzero((char *)&data_addr, sizeof(data_addr));
        		data_addr.sin_family = AF_INET;
-        	data_addr.sin_port = htons(dataPort);
-        	inet_pton(AF_INET, ip_str, &data_addr.sin_addr);
+        	data_addr.sin_addr.s_addr = inet_addr(ip_str);
+		data_addr.sin_port = htons(dataPort);
 
 		if(connect(data_sockfd, (struct sockaddr *)&data_addr, sizeof(data_addr)) < 0) {
             		printf("Error: can't connect\n");
             		close(data_sockfd);
             		return -1;
        		 }
-
+		
 		memset(buff, 0, sizeof(buff));
 		memset(result_buff, 0, sizeof(result_buff));
 		if((n = read(control_sockfd, buff, MAX_BUF))>0) {
@@ -311,9 +317,11 @@ int exe_client(int control_sockfd)
 			}
 			write(data_sockfd, result_buff, strlen(result_buff)); //send to client
 		}
-
+	
 	close(data_sockfd);
+	
 	}
+	
 	return 0;
 }
 
