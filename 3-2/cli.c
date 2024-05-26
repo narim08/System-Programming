@@ -23,8 +23,18 @@
 #define MAX_BUF 200
 #define RCV_BUF 1024
 
+
+////////////////////////////////////////////////////////////////////////////
+//convert_addr_to_str
+//========================================================================//
+//Input: unsigned long ip_addr	- ip address
+//	 unsigned int port	- port number
+//Output: addr			- port command
+//Purpose: Create a port command with ip and new port.
+////////////////////////////////////////////////////////////////////////////
 char* convert_addr_to_str(unsigned long ip_addr, unsigned int port)
 {
+	//Save IP separately
 	static char addr[64];
 	unsigned char byte[4];
 	byte[0] = ip_addr & 0xFF;
@@ -32,11 +42,21 @@ char* convert_addr_to_str(unsigned long ip_addr, unsigned int port)
 	byte[2] = (ip_addr >> 16) & 0xFF;
 	byte[3] = (ip_addr >> 24) & 0xFF;
 
+	//creat port command
 	snprintf(addr, sizeof(addr), "PORT %d,%d,%d,%d,%d,%d", byte[0], byte[1], byte[2], byte[3], port/256, port%256);
 
 	return addr;
 }
 
+////////////////////////////////////////////////////////////////////////////
+//conv_cmd
+//========================================================================//
+//Input: char* buff	-user command line buffer
+//	 char* cmd_buff -convert, ftp command line buffer
+//Output: 1		-Normal completion
+//	  -1		-invalid command
+//Purpose: Convert user command to FTP command
+////////////////////////////////////////////////////////////////////////////
 int conv_cmd(char *buff, char *cmd_buff)
 {
 	char *token = strtok(buff, " "); //user command
@@ -69,7 +89,8 @@ int conv_cmd(char *buff, char *cmd_buff)
 // 	   char *argv[]	- content of argument
 // Output : 0 - Normal completion
 // 	   -1 - Error
-// Purpose : connect to server with socket
+// Purpose : connect to server with socket. Communicate with the
+// 	     server over a separate connection
 // /////////////////////////////////////////////////////////////////
 int main(int argc, char *argv[])
 {
@@ -116,7 +137,7 @@ int main(int argc, char *argv[])
 	}
 
 	//====================send Port command=====================//
-	int dataPort = 12345;
+	int dataPort = 12345; //new port
 	char*hostport = convert_addr_to_str(serv_addr.sin_addr.s_addr, dataPort);
 	
 	write(sockfd, hostport, strlen(hostport)); //send port cmd to server
@@ -125,7 +146,7 @@ int main(int argc, char *argv[])
 	read(sockfd, buff, sizeof(buff));
 	write(1, buff, strlen(buff));
 	write(1, "\n", 1);
-	if(strncmp(buff, "200", 3)!=0) {
+	if(strncmp(buff, "200", 3)!=0) { //check ACK
 		write(STDERR_FILENO, "Error: not ACK\n", 16);
 		return -1;
 	}
@@ -137,6 +158,7 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
+	//set new address
 	memset(&data_addr, 0, sizeof(data_addr));
 	data_addr.sin_family = AF_INET;
 	data_addr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -160,7 +182,7 @@ int main(int argc, char *argv[])
             	close(data_sockfd); close(sockfd); return -1;
        	}
 	
-	write(cli_sockfd, cmd_buff, strlen(cmd_buff));
+	write(cli_sockfd, cmd_buff, strlen(cmd_buff)); //send command to server
 	memset(rcv_buff, 0, sizeof(rcv_buff));
 	memset(buff, 0, sizeof(buff));
 	n = read(cli_sockfd, buff, MAX_BUF-1); //read 150

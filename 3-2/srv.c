@@ -1,15 +1,14 @@
-////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
 // File Name	: srv.c
 // Date		: 2024/05/26
 // OS		: Ubuntu 20.04.6 LTS 64bits
 // Author	: Park Na Rim
 // Student ID	: 2022202065
-// ----------------------------------------------------------------- //
-// Title: System Programming Assignment #3-1 (ftp server)
-// Description : Server program that converts the FTP command received
-//               from the client back into a user command. it then
-//               executes the command and send the results to client.
-///////////////////////////////////////////////////////////////////////
+// --------------------------------------------------------------------- //
+// Title: System Programming Assignment #3-2 (ftp server)
+// Description : The server program connects to the PORT sent by the
+// 		 client and sends the ls results through a data connection.
+///////////////////////////////////////////////////////////////////////////
 
 #include <sys/types.h>
 #include <dirent.h>
@@ -259,7 +258,15 @@ int cmd_process(char* buff, char* result_buff)
 	return 0;
 }
 
-
+////////////////////////////////////////////////////////////////////
+// exe_client
+// ============================================================== //
+// Input : int control_sockfd - control connection socket descriptor
+// Output : 0 - success
+// 	   -1 - fail
+// Purpose : Performed after connecting to the port sent by the
+// 	     client.
+// /////////////////////////////////////////////////////////////////
 int exe_client(int control_sockfd)
 {
 	char buff[MAX_BUF], result_buff[SEND_BUF];
@@ -267,6 +274,7 @@ int exe_client(int control_sockfd)
 	memset(buff, 0, sizeof(buff));
 	memset(result_buff, 0, sizeof(result_buff));
 
+	//Read new port number specified by client
 	if ((n = read(control_sockfd, buff, MAX_BUF)) > 0) {
         	buff[n] = '\0';
         	printf("%s\n", buff);
@@ -284,22 +292,21 @@ int exe_client(int control_sockfd)
         	dataPort = p1 * 256 + p2;
 		
 		//================data connection=============//
-		sleep(2);
-        	int data_sockfd;
+		sleep(2); //Wait for the client to switch to the server role
+        	int data_sockfd; //data connection socket
         	struct sockaddr_in data_addr;
         	if ((data_sockfd = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
             		printf("Error: can't creat data socket\n");
             		return -1;
        		 }
 
-		//set
+		//set new address
 		memset(&data_addr, 0, sizeof(data_addr));
        		data_addr.sin_family = AF_INET;
         	data_addr.sin_addr.s_addr = inet_addr(ip_str);
 		data_addr.sin_port = htons(dataPort);
 		
 		if(connect(data_sockfd, (struct sockaddr *) &data_addr, sizeof(data_addr)) < 0) {
-            		//printf("Error: can't connect\n");
             		perror("Error: can't connect");
 			close(data_sockfd);
             		return -1;
@@ -307,9 +314,9 @@ int exe_client(int control_sockfd)
 		
 		memset(buff, 0, sizeof(buff));
 		memset(result_buff, 0, sizeof(result_buff));
-		if((n = read(data_sockfd, buff, MAX_BUF))>0) {
+		if((n = read(data_sockfd, buff, MAX_BUF))>0) { //Read command sent by client
 			buff[n]='\0';
-			if(cmd_process(buff, result_buff) < 0) { //cmd execute
+			if(cmd_process(buff, result_buff) < 0) { //command execute
 				write(STDERR_FILENO, "Error: cmd_process() error!!\n", 50);
 				exit(1);
 			}
@@ -333,7 +340,14 @@ int exe_client(int control_sockfd)
 	return 0;
 }
 
-
+////////////////////////////////////////////////////////////////////
+// main
+// ============================================================== //
+// Input : int argc	- number of arguments
+// 	   char *argv[]	- content of argument
+// Output : 0 - Normal completion
+// Purpose : Connect to the client through a socket.
+// /////////////////////////////////////////////////////////////////
 int main(int argc, char *argv[]) 
 {
 	int control_sockfd, cli_sockfd;
@@ -341,12 +355,13 @@ int main(int argc, char *argv[])
 	socklen_t cli_addr_len = sizeof(cli_addr);
 	int port = atoi(argv[1]);
 	
+	//creat control socket
 	if ((control_sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         	printf("Error: can't creat socket\n");
         	exit(1);
     	}
 
-	//set
+	//set address
 	serv_addr.sin_family = AF_INET;
     	serv_addr.sin_addr.s_addr = INADDR_ANY;
     	serv_addr.sin_port = htons(port);
@@ -360,12 +375,12 @@ int main(int argc, char *argv[])
 	//listen to client requests
 	listen(control_sockfd, 5);
 
-	while(1) {
+	while(1) { //Accept client request
 		if ((cli_sockfd = accept(control_sockfd, (struct sockaddr *)&cli_addr, &cli_addr_len)) < 0) {
             	printf("Error: can't accept\n");
             	continue;
         	}
-		int exeN;
+		int exeN; //client execute
         	if((exeN = exe_client(cli_sockfd) < 0)) {
 			printf("Error: exe_client error\n");
 			exit(1);		
