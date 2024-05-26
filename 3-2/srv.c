@@ -283,7 +283,8 @@ int exe_client(int control_sockfd)
 		snprintf(ip_str, sizeof(ip_str), "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
         	dataPort = p1 * 256 + p2;
 		
-		//================data connection=============/
+		//================data connection=============//
+		sleep(2);
         	int data_sockfd;
         	struct sockaddr_in data_addr;
         	if ((data_sockfd = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
@@ -292,21 +293,22 @@ int exe_client(int control_sockfd)
        		 }
 
 		//set
-		bzero((char *)&data_addr, sizeof(data_addr));
+		memset(&data_addr, 0, sizeof(data_addr));
        		data_addr.sin_family = AF_INET;
         	data_addr.sin_addr.s_addr = inet_addr(ip_str);
-		data_addr.sin_port = dataPort;
-		printf("ip: %d / port: %d\n", data_addr.sin_addr.s_addr, data_addr.sin_port);
+		data_addr.sin_port = htons(dataPort);
+		printf("ip: %s / port: %d\n", inet_ntoa(data_addr.sin_addr), ntohs(data_addr.sin_port));
 
 		if(connect(data_sockfd, (struct sockaddr *) &data_addr, sizeof(data_addr)) < 0) {
-            		printf("Error: can't connect\n");
-            		close(data_sockfd);
+            		//printf("Error: can't connect\n");
+            		perror("Error: can't connect");
+			close(data_sockfd);
             		return -1;
        		 }
 		
 		memset(buff, 0, sizeof(buff));
 		memset(result_buff, 0, sizeof(result_buff));
-		if((n = read(control_sockfd, buff, MAX_BUF))>0) {
+		if((n = read(data_sockfd, buff, MAX_BUF))>0) {
 			buff[n]='\0';
 			if(cmd_process(buff, result_buff) < 0) { //cmd execute
 				write(STDERR_FILENO, "Error: cmd_process() error!!\n", 50);

@@ -32,7 +32,7 @@ char* convert_addr_to_str(unsigned long ip_addr, unsigned int port)
 	byte[2] = (ip_addr >> 16) & 0xFF;
 	byte[3] = (ip_addr >> 24) & 0xFF;
 
-	snprintf(addr, sizeof(addr), "PORT %d,%d,%d,%d,%d,%d", byte[0], byte[1], byte[2], byte[3], port%256, port/256);
+	snprintf(addr, sizeof(addr), "PORT %d,%d,%d,%d,%d,%d", byte[0], byte[1], byte[2], byte[3], port/256, port%256);
 
 	return addr;
 }
@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
 	}
 
 	//====================send Port command=====================//
-	int dataPort = htons(12345);
+	int dataPort = 12345;
 	char*hostport = convert_addr_to_str(serv_addr.sin_addr.s_addr, dataPort);
 	
 	write(sockfd, hostport, strlen(hostport)); //send port cmd to server
@@ -121,36 +121,37 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	char *haddr2 = "127.0.0.1";
-	bzero((char*)&data_addr, sizeof(data_addr));
+	memset(&data_addr, 0, sizeof(data_addr));
 	data_addr.sin_family = AF_INET;
-	data_addr.sin_addr.s_addr = inet_addr(haddr2);
+	data_addr.sin_addr.s_addr = htonl(INADDR_ANY);
     	data_addr.sin_port = htons(dataPort);
 
-	printf("ip: %d / port: %d\n", data_addr.sin_addr.s_addr, data_addr.sin_port);
+	printf("Listening on ip: %s / port: %d\n", inet_ntoa(data_addr.sin_addr), ntohs(data_addr.sin_port));
 
 	if (bind(data_sockfd, (struct sockaddr *) &data_addr, sizeof(data_addr)) < 0) {
-        	printf("Error: can't bind data socket\n");
+        	perror("Error: can't bind data socket");
         	close(data_sockfd);
         	close(sockfd);
         	return -1;
     	}
 
     	if(listen(data_sockfd, 1)<0) {
-		printf("Error: can't listen\n");
+		perror("Error: can't listen");
 		close(data_sockfd); close(sockfd); return -1;
 	}
 
+	printf("Waiting for new connection on port %d...\n", ntohs(data_addr.sin_port));
 
 	int cli_sockfd;
 	if ((cli_sockfd = accept(data_sockfd, (struct sockaddr *)&cli_addr, &cli_len)) < 0) {
-         	printf("Error: can't accept data connection\n");
+         	perror("Error: can't accept data connection");
             	close(data_sockfd); close(sockfd); return -1;
        	}
+	printf("Data connection established with client: %s:%d\n", inet_ntoa(cli_addr.sin_addr), ntohs(cli_addr.sin_port));
 	
-	write(data_sockfd, cmd_buff, strlen(cmd_buff));
+	write(cli_sockfd, cmd_buff, strlen(cmd_buff));
 	memset(rcv_buff, 0, sizeof(rcv_buff));
-	if((n=read(sockfd, rcv_buff, RCV_BUF-1)) < 0) { //read server result
+	if((n=read(cli_sockfd, rcv_buff, RCV_BUF-1)) < 0) { //read server result
 		write(STDERR_FILENO, "Error: read() error!!\n", 50);
 		exit(1);
 	}
