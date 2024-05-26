@@ -25,7 +25,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h> //inet_ntop()
 
-#define MAX_BUF 100
+#define MAX_BUF 200
 #define SEND_BUF 1024
 
 
@@ -297,8 +297,7 @@ int exe_client(int control_sockfd)
        		data_addr.sin_family = AF_INET;
         	data_addr.sin_addr.s_addr = inet_addr(ip_str);
 		data_addr.sin_port = htons(dataPort);
-		printf("ip: %s / port: %d\n", inet_ntoa(data_addr.sin_addr), ntohs(data_addr.sin_port));
-
+		
 		if(connect(data_sockfd, (struct sockaddr *) &data_addr, sizeof(data_addr)) < 0) {
             		//printf("Error: can't connect\n");
             		perror("Error: can't connect");
@@ -314,7 +313,17 @@ int exe_client(int control_sockfd)
 				write(STDERR_FILENO, "Error: cmd_process() error!!\n", 50);
 				exit(1);
 			}
-			write(data_sockfd, result_buff, strlen(result_buff)); //send to client
+	
+			memset(buff, 0, sizeof(buff));
+			strcpy(buff, "150 Opening data connection for directory list\n");
+			write(data_sockfd, buff, strlen(buff));
+			printf("150 Opening data connection for directory list\n");
+
+			write(data_sockfd, result_buff, strlen(result_buff)); //send ls result to client
+			memset(buff, 0, sizeof(buff));
+			strcpy(buff, "226 Result is sent successfully\n");
+			write(data_sockfd, buff, strlen(buff));
+			printf("226 Result is sent successfully\n");
 		}
 	
 	close(data_sockfd);

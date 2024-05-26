@@ -20,7 +20,7 @@
 #include <arpa/inet.h>
 #include <time.h>
 
-#define MAX_BUF 100
+#define MAX_BUF 200
 #define RCV_BUF 1024
 
 char* convert_addr_to_str(unsigned long ip_addr, unsigned int port)
@@ -39,11 +39,27 @@ char* convert_addr_to_str(unsigned long ip_addr, unsigned int port)
 
 int conv_cmd(char *buff, char *cmd_buff)
 {
-	if(!strcmp(buff, "ls")) {
-		strcpy(cmd_buff, "NLST");
-		return 0;
+	char *token = strtok(buff, " "); //user command
+	char *userCmd = token;
+
+	if(strcmp(userCmd, "quit")==0) { //quit
+		strcpy(cmd_buff, "QUIT"); //FTP command
+		cmd_buff[4]='\0';
 	}
-	return -1;
+	else if(strcmp(userCmd, "ls")==0) { //ls
+		strcpy(cmd_buff, "NLST"); //FTP command
+		while((token = strtok(NULL, " "))!=NULL) { //option. argument parse
+			strcat(cmd_buff, " ");
+			strcat(cmd_buff, token);
+		}
+		int n = strlen(cmd_buff);
+		cmd_buff[n] = '\0'; //set string end
+	}
+	else { //invalid command, error
+		write(STDERR_FILENO, "Error: invalid command\n", 50);
+		return -1;
+	}
+	return 1;
 }
 
 ////////////////////////////////////////////////////////////////////
@@ -126,8 +142,6 @@ int main(int argc, char *argv[])
 	data_addr.sin_addr.s_addr = htonl(INADDR_ANY);
     	data_addr.sin_port = htons(dataPort);
 
-	printf("Listening on ip: %s / port: %d\n", inet_ntoa(data_addr.sin_addr), ntohs(data_addr.sin_port));
-
 	if (bind(data_sockfd, (struct sockaddr *) &data_addr, sizeof(data_addr)) < 0) {
         	perror("Error: can't bind data socket");
         	close(data_sockfd);
@@ -140,17 +154,19 @@ int main(int argc, char *argv[])
 		close(data_sockfd); close(sockfd); return -1;
 	}
 
-	printf("Waiting for new connection on port %d...\n", ntohs(data_addr.sin_port));
-
 	int cli_sockfd;
 	if ((cli_sockfd = accept(data_sockfd, (struct sockaddr *)&cli_addr, &cli_len)) < 0) {
          	perror("Error: can't accept data connection");
             	close(data_sockfd); close(sockfd); return -1;
        	}
-	printf("Data connection established with client: %s:%d\n", inet_ntoa(cli_addr.sin_addr), ntohs(cli_addr.sin_port));
 	
 	write(cli_sockfd, cmd_buff, strlen(cmd_buff));
 	memset(rcv_buff, 0, sizeof(rcv_buff));
+	memset(buff, 0, sizeof(buff));
+	n = read(cli_sockfd, buff, MAX_BUF-1); //read 150
+	buff[n]='\0';
+	write(1, buff, strlen(buff));
+	
 	if((n=read(cli_sockfd, rcv_buff, RCV_BUF-1)) < 0) { //read server result
 		write(STDERR_FILENO, "Error: read() error!!\n", 50);
 		exit(1);
@@ -160,7 +176,12 @@ int main(int argc, char *argv[])
 	//========================display result=======================//
 	write(STDOUT_FILENO, rcv_buff, strlen(rcv_buff));
 	write(STDOUT_FILENO, "\n", 1);
-
+	
+	memset(buff, 0, sizeof(buff));
+	n = read(cli_sockfd, buff, sizeof(buff)); //226
+	buff[n]='\0';
+	write(1, buff, strlen(buff));
+	
 	close(cli_sockfd);	
 	close(data_sockfd);
 	close(sockfd);
