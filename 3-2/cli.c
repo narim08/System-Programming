@@ -1,14 +1,14 @@
-///////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 // File Name	: cli.c
 // Data		: 2024/05/26
 // OS		: Ubuntu 20.04.6 LTS 64bits
 // Author	: Park Na Rim
 // Student ID	: 2022202065
-// -------------------------------------------------------------------------//
+// ---------------------------------------------------------------------------//
 // Title : System Programming Assignment #3-2 (ftp server)
-// Description : This client program connects to the server and attempts to
-// 		 log in.
-/////////////////////////////////////////////////////////////////////////////
+// Description : The client program creates a random port number and establishes
+// 		 a separate connection with the server.
+////////////////////////////////////////////////////////////////////////////////
 
 #include <stdio.h>
 #include <string.h>
