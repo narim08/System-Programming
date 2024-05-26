@@ -121,12 +121,15 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
+	char *haddr2 = "127.0.0.1";
 	bzero((char*)&data_addr, sizeof(data_addr));
 	data_addr.sin_family = AF_INET;
-	data_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	data_addr.sin_addr.s_addr = inet_addr(haddr2);
     	data_addr.sin_port = htons(dataPort);
 
-	if (bind(data_sockfd, (struct sockaddr *)&data_addr, sizeof(data_addr)) < 0) {
+	printf("ip: %d / port: %d\n", data_addr.sin_addr.s_addr, data_addr.sin_port);
+
+	if (bind(data_sockfd, (struct sockaddr *) &data_addr, sizeof(data_addr)) < 0) {
         	printf("Error: can't bind data socket\n");
         	close(data_sockfd);
         	close(sockfd);

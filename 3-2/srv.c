@@ -282,12 +282,8 @@ int exe_client(int control_sockfd)
         	char ip_str[INET_ADDRSTRLEN];
 		snprintf(ip_str, sizeof(ip_str), "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
         	dataPort = p1 * 256 + p2;
-
-		printf("Connecting to client at %s:%d\n", ip_str, dataPort);
-
 		
-		//================data connection=============//
-		sleep(3);
+		//================data connection=============/
         	int data_sockfd;
         	struct sockaddr_in data_addr;
         	if ((data_sockfd = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
@@ -299,9 +295,10 @@ int exe_client(int control_sockfd)
 		bzero((char *)&data_addr, sizeof(data_addr));
        		data_addr.sin_family = AF_INET;
         	data_addr.sin_addr.s_addr = inet_addr(ip_str);
-		data_addr.sin_port = htons(dataPort);
+		data_addr.sin_port = dataPort;
+		printf("ip: %d / port: %d\n", data_addr.sin_addr.s_addr, data_addr.sin_port);
 
-		if(connect(data_sockfd, (struct sockaddr *)&data_addr, sizeof(data_addr)) < 0) {
+		if(connect(data_sockfd, (struct sockaddr *) &data_addr, sizeof(data_addr)) < 0) {
             		printf("Error: can't connect\n");
             		close(data_sockfd);
             		return -1;
