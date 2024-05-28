@@ -134,6 +134,10 @@ int main(int argc, char *argv[])
 			printf("Error: invalid command\n");
 			return -1;
 		}
+		if(!strcmp(cmd_buff, "QUIT")) {
+			printf("221 Goodbye\n");
+			exit(0);
+		}
 	}
 
 	//====================send Port command=====================//
@@ -202,7 +206,7 @@ int main(int argc, char *argv[])
 	memset(buff, 0, sizeof(buff));
 	n = read(cli_sockfd, buff, sizeof(buff)); //226
 	buff[n]='\0';
-	write(1, buff, strlen(buff));
+	write(1, buff, strlen(buff));	
 	
 	close(cli_sockfd);	
 	close(data_sockfd);
